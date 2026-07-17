@@ -48,7 +48,8 @@ class PaymentNotification {
       sourceId: map['sourceId']?.toString() ?? '',
       packageName: map['packageName']?.toString() ?? '',
       appName: map['appName']?.toString() ?? '',
-      receivedAt: DateTime.tryParse(map['receivedAt']?.toString() ?? '') ??
+      receivedAt:
+          DateTime.tryParse(map['receivedAt']?.toString() ?? '') ??
           DateTime.now(),
       rawTitle: map['rawTitle']?.toString() ?? '',
       rawBody: map['rawBody']?.toString() ?? '',
@@ -91,6 +92,28 @@ class PaymentNotification {
       'referenceId': referenceId,
       'note': note,
       'maskedAccount': maskedAccount,
+    };
+  }
+
+  Map<String, dynamic> toBackendPayload() {
+    return <String, dynamic>{
+      'source_id': sourceId,
+      'package_name': packageName,
+      'app_name': appName,
+      'amount': amount,
+      'received': direction == PaymentDirection.incoming,
+      'payee_name': counterparty,
+      'timestamp': receivedAt.toUtc().toIso8601String(),
+      'status': status.name,
+      'transaction_id': transactionId,
+      'reference_id': referenceId,
+      'upi_id': upiId,
+      'currency': currency,
+      'raw_title': rawTitle,
+      'raw_body': rawBody,
+      'raw_text': rawText,
+      'note': note,
+      'masked_account': maskedAccount,
     };
   }
 
@@ -174,7 +197,7 @@ class PaymentNotificationParser {
     caseSensitive: false,
   );
   static final RegExp _transactionId = RegExp(
-    r'\b(?:utr|rrn|upi ref(?:erence)?(?: no)?|txn(?: ref)?(?: no)?|transaction id|reference no|ref no|order id|approval code)\s*[:#\-]?\s*([a-z0-9/-]+)\b',
+    r'\b(?:utr|rrn|upi ref(?:erence)?(?: no)?|txn(?: id| ref(?:erence)?(?: no)?| no)?|transaction id|reference no|ref no|order id|approval code)\s*[:#\-]?\s*([a-z0-9/-]+)\b',
     caseSensitive: false,
   );
   static final RegExp _maskedAccount = RegExp(
@@ -236,7 +259,8 @@ class PaymentNotificationParser {
     final rawBody = event.text?.trim() ?? '';
 
     return PaymentNotification(
-      sourceId: event.uniqueId?.trim() ??
+      sourceId:
+          event.uniqueId?.trim() ??
           '${packageName}_${event.timestamp ?? event.createAt?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch}',
       packageName: packageName,
       appName: _packageLabels[packageName] ?? packageName,
@@ -294,7 +318,8 @@ class PaymentNotificationParser {
   }
 
   static double? _extractAmount(String text) {
-    final match = _amountPrefix.firstMatch(text) ?? _amountSuffix.firstMatch(text);
+    final match =
+        _amountPrefix.firstMatch(text) ?? _amountSuffix.firstMatch(text);
     if (match == null) {
       return null;
     }
@@ -321,7 +346,15 @@ class PaymentNotificationParser {
     if (_containsAny(lower, ['received', 'credited', 'refund', 'added'])) {
       return PaymentDirection.incoming;
     }
-    if (_containsAny(lower, ['paid', 'sent', 'debited', 'deducted', 'spent', 'withdrawn', 'transferred'])) {
+    if (_containsAny(lower, [
+      'paid',
+      'sent',
+      'debited',
+      'deducted',
+      'spent',
+      'withdrawn',
+      'transferred',
+    ])) {
       return PaymentDirection.outgoing;
     }
     return PaymentDirection.unknown;
@@ -329,35 +362,60 @@ class PaymentNotificationParser {
 
   static PaymentStatus _extractStatus(String text) {
     final lower = text.toLowerCase();
-    if (_containsAny(lower, ['failed', 'declined', 'rejected', 'unsuccessful', 'not completed'])) {
+    if (_containsAny(lower, [
+      'failed',
+      'declined',
+      'rejected',
+      'unsuccessful',
+      'not completed',
+    ])) {
       return PaymentStatus.failed;
     }
-    if (_containsAny(lower, ['pending', 'processing', 'initiated', 'in progress'])) {
+    if (_containsAny(lower, [
+      'pending',
+      'processing',
+      'initiated',
+      'in progress',
+    ])) {
       return PaymentStatus.pending;
     }
     if (_containsAny(lower, ['reversed', 'reversal'])) {
       return PaymentStatus.reversed;
     }
-    if (_containsAny(lower, ['success', 'successful', 'credited', 'debited', 'paid', 'received'])) {
+    if (_containsAny(lower, [
+      'success',
+      'successful',
+      'credited',
+      'debited',
+      'paid',
+      'received',
+    ])) {
       return PaymentStatus.success;
     }
     return PaymentStatus.unknown;
   }
 
   static String? _extractCounterparty(String text, PaymentDirection direction) {
-    final patterns = direction == PaymentDirection.incoming
-        ? <RegExp>[
-            RegExp(
-              r'\b(?:received from|from)\s+([a-z0-9@._&\-\s]{2,80}?)(?=(?:\s+(?:via|using|on|at|for|to|in|upi|imps|neft|rtgs|credited|debited|sent|received|paid|transferred)\b)|[,.|;:]|$)',
-              caseSensitive: false,
-            ),
-          ]
-        : <RegExp>[
-            RegExp(
-              r'\b(?:paid to|sent to|to)\s+([a-z0-9@._&\-\s]{2,80}?)(?=(?:\s+(?:via|using|on|at|for|in|upi|imps|neft|rtgs|credited|debited|sent|received|paid|transferred)\b)|[,.|;:]|$)',
-              caseSensitive: false,
-            ),
-          ];
+    final patterns = <RegExp>[
+      if (direction == PaymentDirection.incoming)
+        RegExp(
+          r'\b(?:received from|from)\s+([a-z0-9@._&\-\s]{2,80}?)(?=(?:\s+(?:via|using|on|at|for|to|in|upi|imps|neft|rtgs|credited|debited|sent|received|paid|transferred)\b)|[,.|;:]|$)',
+          caseSensitive: false,
+        ),
+      if (direction == PaymentDirection.outgoing)
+        RegExp(
+          r'\b(?:paid to|sent to|to)\s+([a-z0-9@._&\-\s]{2,80}?)(?=(?:\s+(?:via|using|on|at|for|in|upi|imps|neft|rtgs|credited|debited|sent|received|paid|transferred)\b)|[,.|;:]|$)',
+          caseSensitive: false,
+        ),
+      RegExp(
+        r'\b([a-z0-9@._&\-\s]{2,80}?)\s+(?:has sent|has paid|has transferred)\s+(?:₹|rs\.?|inr)?\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'\b(?:payment from|money received from)\s+([a-z0-9@._&\-\s]{2,80}?)(?=(?:\s+(?:via|using|on|at|for|to|in|upi|imps|neft|rtgs)\b)|[,.|;:]|$)',
+        caseSensitive: false,
+      ),
+    ];
 
     final candidate = _firstGroup(text, patterns);
     if (candidate == null) {
@@ -365,7 +423,20 @@ class PaymentNotificationParser {
     }
 
     final cleaned = _normalize(candidate)
-        .replaceAll(RegExp(r'\b(?:upi|imps|neft|rtgs|payment|transfer|transaction)\b', caseSensitive: false), '')
+        .replaceAll(
+          RegExp(
+            r'\b(?:upi|imps|neft|rtgs|payment|transfer|transaction)\b',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(
+            r'\b(?:has sent|has paid|has transferred)\b',
+            caseSensitive: false,
+          ),
+          '',
+        )
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     return cleaned.isEmpty ? null : cleaned;

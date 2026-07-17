@@ -1,23 +1,20 @@
 import 'dart:async';
 import 'dart:isolate';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_notification_listener/flutter_notification_listener.dart';
 
 import 'payment_notification.dart';
 
-enum ListenerState {
-  unsupported,
-  permissionRequired,
-  listening,
-  inactive,
-}
+enum ListenerState { unsupported, permissionRequired, listening, inactive }
 
 class PaymentSync {
   static const String _uiPortName = 'payment_tracker_payment_port';
+  static const Duration _dedupeWindow = Duration(seconds: 5);
   static final StreamController<PaymentNotification> _controller =
       StreamController<PaymentNotification>.broadcast();
-  static final Set<String> _seenIds = <String>{};
+  static final Map<String, DateTime> _recentSignatures = <String, DateTime>{};
   static ReceivePort? _uiPort;
   static bool _uiBridgeReady = false;
 
@@ -51,7 +48,7 @@ class PaymentSync {
     }
 
     await NotificationsListener.initialize(
-      callbackHandle: _onBackgroundNotification,
+      callbackHandle: paymentSyncBackgroundNotificationCallback,
     );
 
     final isRunning = await NotificationsListener.isRunning ?? false;
@@ -88,22 +85,61 @@ class PaymentSync {
   }
 
   static void _emit(PaymentNotification notification) {
-    if (notification.sourceId.isEmpty) {
-      return;
-    }
-    if (_seenIds.add(notification.sourceId)) {
-      _controller.add(notification);
-    }
-  }
-
-  @pragma('vm:entry-point')
-  static void _onBackgroundNotification(NotificationEvent event) {
-    final parsed = PaymentNotificationParser.tryParse(event);
-    if (parsed == null) {
+    final signature = _signature(notification);
+    if (signature.isEmpty) {
       return;
     }
 
-    final sendPort = IsolateNameServer.lookupPortByName(_uiPortName);
-    sendPort?.send(parsed.toMap());
+    final now = notification.receivedAt;
+    _recentSignatures.removeWhere(
+      (key, seenAt) => now.difference(seenAt).abs() > _dedupeWindow,
+    );
+
+    final lastSeen = _recentSignatures[signature];
+    if (lastSeen != null && now.difference(lastSeen).abs() <= _dedupeWindow) {
+      return;
+    }
+
+    _recentSignatures[signature] = now;
+    _controller.add(notification);
   }
+
+  static String _signature(PaymentNotification notification) {
+    final normalizedCounterparty = notification.counterparty?.trim().toLowerCase() ?? '';
+    final normalizedUpiId = notification.upiId?.trim().toLowerCase() ?? '';
+    final normalizedTransactionId =
+        notification.transactionId?.trim().toLowerCase() ?? '';
+    final normalizedReferenceId =
+        notification.referenceId?.trim().toLowerCase() ?? '';
+    final normalizedNote = notification.note?.trim().toLowerCase() ?? '';
+    final normalizedMaskedAccount =
+        notification.maskedAccount?.trim().toLowerCase() ?? '';
+    final amount = notification.amount?.toStringAsFixed(2) ?? 'na';
+
+    return [
+      notification.packageName.trim().toLowerCase(),
+      notification.appName.trim().toLowerCase(),
+      notification.direction.name,
+      notification.status.name,
+      amount,
+      normalizedCounterparty,
+      normalizedUpiId,
+      normalizedTransactionId,
+      normalizedReferenceId,
+      normalizedNote,
+      normalizedMaskedAccount,
+    ].join('|');
+  }
+}
+
+@pragma('vm:entry-point')
+void paymentSyncBackgroundNotificationCallback(NotificationEvent event) {
+  final parsed = PaymentNotificationParser.tryParse(event);
+  if (parsed == null) {
+    return;
+  }
+
+  final sendPort =
+      IsolateNameServer.lookupPortByName(PaymentSync._uiPortName);
+  sendPort?.send(parsed.toMap());
 }

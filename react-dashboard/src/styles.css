@@ -1,0 +1,367 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif;
+  color: #e5eef8;
+  background:
+    radial-gradient(circle at top left, rgba(35, 112, 109, 0.4), transparent 34%),
+    radial-gradient(circle at 80% 10%, rgba(18, 70, 115, 0.35), transparent 28%),
+    linear-gradient(135deg, #07111f 0%, #0d1c2b 38%, #f5f7fb 100%);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
+
+.shell {
+  width: min(1200px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 28px 0 48px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 20px;
+  align-items: end;
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 28px;
+  background: rgba(5, 10, 18, 0.52);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(18px);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: #8ee8dd;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2.3rem, 4vw, 4.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+}
+
+.hero__copy {
+  max-width: 58ch;
+  margin: 16px 0 0;
+  color: rgba(229, 238, 248, 0.82);
+}
+
+.hero__copy--alert {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-left: 3px solid #ffd87a;
+  border-radius: 14px;
+  background: rgba(255, 216, 122, 0.08);
+}
+
+.hero__copy code {
+  padding: 0.12rem 0.34rem;
+  border-radius: 6px;
+  color: #f7fbff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.hero__status {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hero__status strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.hero__status p {
+  margin: 2px 0 0;
+  color: rgba(229, 238, 248, 0.76);
+  font-size: 0.92rem;
+}
+
+.hero__status button {
+  padding: 12px 16px;
+  border-radius: 14px;
+  color: #07111f;
+  background: #8ee8dd;
+  font-weight: 700;
+}
+
+.status-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 6px rgba(142, 232, 221, 0.12);
+}
+
+.status-dot--ok {
+  background: #8ee8dd;
+}
+
+.status-dot--error {
+  background: #ff8f8f;
+  box-shadow: 0 0 0 6px rgba(255, 143, 143, 0.12);
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.toolbar label {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  background: rgba(9, 18, 30, 0.7);
+}
+
+.toolbar span {
+  color: rgba(229, 238, 248, 0.72);
+  font-size: 0.82rem;
+}
+
+.toolbar input,
+.toolbar select {
+  width: 100%;
+  border: 0;
+  outline: none;
+  color: #eef6ff;
+  background: transparent;
+}
+
+.toolbar input::placeholder {
+  color: rgba(229, 238, 248, 0.46);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stat-card {
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(9, 18, 30, 0.8);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12);
+}
+
+.stat-card span {
+  color: rgba(229, 238, 248, 0.68);
+  font-size: 0.82rem;
+}
+
+.stat-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: clamp(1.3rem, 2vw, 2rem);
+  letter-spacing: -0.04em;
+}
+
+.stat-card p {
+  margin: 8px 0 0;
+  color: rgba(229, 238, 248, 0.68);
+  font-size: 0.9rem;
+}
+
+.stat-card--teal strong {
+  color: #8ee8dd;
+}
+
+.stat-card--green strong {
+  color: #9ef0ad;
+}
+
+.stat-card--amber strong {
+  color: #ffd87a;
+}
+
+.stat-card--blue strong {
+  color: #9cc9ff;
+}
+
+.stat-card--rose strong {
+  color: #ff9ba8;
+}
+
+.content {
+  margin-top: 18px;
+}
+
+.content__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.content__header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.content__header p {
+  margin: 6px 0 0;
+  color: rgba(229, 238, 248, 0.7);
+}
+
+.content__count {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(142, 232, 221, 0.15);
+  color: #bff3eb;
+  font-weight: 700;
+}
+
+.payments {
+  display: grid;
+  gap: 14px;
+}
+
+.payment-card {
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(9, 18, 30, 0.88);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.12);
+}
+
+.payment-card.received {
+  border-left: 4px solid #9ef0ad;
+}
+
+.payment-card.sent {
+  border-left: 4px solid #ff9ba8;
+}
+
+.payment-card__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+}
+
+.payment-card__app {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.payment-card__meta {
+  margin-top: 3px;
+  color: rgba(229, 238, 248, 0.64);
+  font-size: 0.92rem;
+}
+
+.payment-card__amount {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  color: #f7fbff;
+}
+
+.payment-card__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.payment-card__grid span {
+  display: block;
+  color: rgba(229, 238, 248, 0.56);
+  font-size: 0.77rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.payment-card__grid strong {
+  display: block;
+  margin-top: 4px;
+  color: #f7fbff;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.payment-card__footer {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(229, 238, 248, 0.78);
+}
+
+.payment-card__footer p {
+  margin: 0 0 6px;
+}
+
+.empty-state {
+  padding: 24px;
+  border-radius: 22px;
+  background: rgba(9, 18, 30, 0.8);
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  color: rgba(229, 238, 248, 0.78);
+}
+
+.empty-state--error {
+  border-color: rgba(255, 143, 143, 0.3);
+  color: #ffb7b7;
+}
+
+@media (max-width: 920px) {
+  .hero,
+  .toolbar,
+  .stats {
+    grid-template-columns: 1fr;
+  }
+
+  .content__header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .payment-card__grid {
+    grid-template-columns: 1fr;
+  }
+}

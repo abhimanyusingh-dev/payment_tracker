@@ -1,11 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'payment_backend.dart';
 import 'payment_notification.dart';
 import 'payment_sync.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+    url: 'https://zkxjgyvaksguqidmrnyg.supabase.co',
+    publishableKey: 'sb_publishable_g30lVAF44gVjrlDiFjhNOA_rjA6X7VZ',
+  );
   runApp(const PaymentTrackerApp());
 }
 
@@ -52,9 +59,9 @@ class _PaymentFeedScreenState extends State<PaymentFeedScreen> {
         return;
       }
       setState(() {
-        _payments.removeWhere((item) => item.sourceId == payment.sourceId);
         _payments.insert(0, payment);
       });
+      unawaited(PaymentBackendClient.instance.savePayment(payment));
     });
     _bootstrap();
   }
@@ -157,12 +164,12 @@ class _PaymentFeedScreenState extends State<PaymentFeedScreen> {
                         count: total,
                         accentColor: _statusColor(context),
                         booting: _booting,
-                        onActionPressed: _listenerState ==
-                                ListenerState.permissionRequired
+                        onActionPressed:
+                            _listenerState == ListenerState.permissionRequired
                             ? _openPermissionSettings
                             : _bootstrap,
-                        actionLabel: _listenerState ==
-                                ListenerState.permissionRequired
+                        actionLabel:
+                            _listenerState == ListenerState.permissionRequired
                             ? 'Open access'
                             : 'Refresh',
                       ),
@@ -194,9 +201,7 @@ class _PaymentFeedScreenState extends State<PaymentFeedScreen> {
                     },
                   ),
                 ),
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 24),
-              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
           ),
         ),
@@ -356,10 +361,7 @@ class _EmptyState extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: <Widget>[
-              FilledButton(
-                onPressed: onRetry,
-                child: const Text('Retry'),
-              ),
+              FilledButton(onPressed: onRetry, child: const Text('Retry')),
               if (listenerState == ListenerState.permissionRequired)
                 OutlinedButton(
                   onPressed: onGrantAccess,
@@ -426,10 +428,7 @@ class _PaymentCard extends StatelessWidget {
                   color: accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(
-                  _directionIcon(payment.direction),
-                  color: accent,
-                ),
+                child: Icon(_directionIcon(payment.direction), color: accent),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -465,9 +464,15 @@ class _PaymentCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: <Widget>[
-              _Chip(label: payment.directionLabel, color: const Color(0xFF0F766E)),
+              _Chip(
+                label: payment.directionLabel,
+                color: const Color(0xFF0F766E),
+              ),
               if ((payment.counterparty ?? '').isNotEmpty)
-                _Chip(label: payment.counterparty!, color: const Color(0xFF334155)),
+                _Chip(
+                  label: payment.counterparty!,
+                  color: const Color(0xFF334155),
+                ),
               if ((payment.upiId ?? '').isNotEmpty)
                 _Chip(label: payment.upiId!, color: const Color(0xFF0F172A)),
             ],
@@ -491,7 +496,8 @@ class _PaymentCard extends StatelessWidget {
               ),
             ),
           ],
-          if (payment.rawTitle.isNotEmpty || payment.rawBody.isNotEmpty) ...<Widget>[
+          if (payment.rawTitle.isNotEmpty ||
+              payment.rawBody.isNotEmpty) ...<Widget>[
             const SizedBox(height: 14),
             Container(
               width: double.infinity,
