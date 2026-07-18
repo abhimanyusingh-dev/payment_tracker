@@ -170,6 +170,10 @@ button {
   background: transparent;
 }
 
+.toolbar input[type='date'] {
+  color-scheme: dark;
+}
+
 .toolbar input::placeholder {
   color: rgba(229, 238, 248, 0.46);
 }
@@ -256,6 +260,46 @@ button {
   font-weight: 700;
 }
 
+.day-groups {
+  display: grid;
+  gap: 18px;
+}
+
+.day-group {
+  padding: 18px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(7, 14, 24, 0.6);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.08);
+}
+
+.day-group__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.day-group__header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.day-group__header p {
+  margin: 4px 0 0;
+  color: rgba(229, 238, 248, 0.66);
+  font-size: 0.9rem;
+}
+
+.day-group__header strong {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(142, 232, 221, 0.15);
+  color: #bff3eb;
+  font-size: 1rem;
+}
+
 .payments {
   display: grid;
   gap: 14px;
@@ -271,10 +315,6 @@ button {
 
 .payment-card.received {
   border-left: 4px solid #9ef0ad;
-}
-
-.payment-card.sent {
-  border-left: 4px solid #ff9ba8;
 }
 
 .payment-card__top {
@@ -357,6 +397,11 @@ button {
   }
 
   .content__header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .day-group__header {
     align-items: start;
     flex-direction: column;
   }

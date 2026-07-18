@@ -24,6 +24,32 @@ const formatTimestamp = (value) => {
   }).format(date);
 };
 
+const formatDayLabel = (value) => {
+  if (!value) {
+    return 'Unknown day';
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+  return new Intl.DateTimeFormat('en-IN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+};
+
+const toLocalDateKey = (value) => {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const normalizePayment = (row) => ({
   id: row.id,
   sourceId: row.source_id,
@@ -104,6 +130,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [appFilter, setAppFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('');
 
   const loadPayments = async () => {
     if (!isSupabaseConfigured) {
@@ -150,6 +177,10 @@ export default function App() {
         return false;
       }
 
+      if (dateFilter && toLocalDateKey(row.timestamp) !== dateFilter) {
+        return false;
+      }
+
       if (!term) {
         return true;
       }
@@ -167,7 +198,27 @@ export default function App() {
         .filter(Boolean)
         .some((field) => String(field).toLowerCase().includes(term));
     });
-  }, [rows, search, appFilter]);
+  }, [rows, search, appFilter, dateFilter]);
+
+  const dayGroups = useMemo(() => {
+    const grouped = new Map();
+
+    for (const row of filteredRows) {
+      const key = toLocalDateKey(row.timestamp) || 'unknown';
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key).push(row);
+    }
+
+    return Array.from(grouped.entries()).map(([dateKey, groupRows]) => ({
+      dateKey,
+      label: dateKey === 'unknown' ? 'Unknown day' : formatDayLabel(dateKey),
+      rows: groupRows,
+      total: groupRows.reduce((sum, row) => sum + row.amount, 0),
+      latest: groupRows[0]?.timestamp || '',
+    }));
+  }, [filteredRows]);
 
   const totals = useMemo(() => {
     return filteredRows.reduce(
@@ -191,11 +242,10 @@ export default function App() {
     <main className="shell">
       <section className="hero">
         <div>
-          <p className="eyebrow">Supabase-backed payment feed</p>
+          <p className="eyebrow">SINGH CABLE NETWORK</p>
           <h1>Payment Tracker</h1>
           <p className="hero__copy">
-            A React dashboard reading your saved PhonePe, Google Pay, and Paytm payment
-            notifications directly from Supabase.
+            A dashboard displaying payment information  from PhonePe, Google Pay,Google Pay Business and Paytm payments.
           </p>
           {!isSupabaseConfigured && (
             <p className="hero__copy hero__copy--alert">
@@ -209,7 +259,7 @@ export default function App() {
           <span className={`status-dot ${error ? 'status-dot--error' : 'status-dot--ok'}`} />
           <div>
             <strong>{error ? 'Sync issue' : 'Connected'}</strong>
-            <p>{error || 'Supabase table payment_events is live.'}</p>
+            <p>{error || 'Payment_events is live.'}</p>
           </div>
           <button type="button" onClick={loadPayments} disabled={refreshing}>
             {refreshing ? 'Refreshing...' : 'Refresh'}
@@ -240,6 +290,15 @@ export default function App() {
           </select>
         </label>
 
+        <label>
+          <span>Date</span>
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(event) => setDateFilter(event.target.value)}
+          />
+        </label>
+
       </section>
 
       <section className="stats">
@@ -262,9 +321,9 @@ export default function App() {
           tone="blue"
         />
         <StatCard
-          label="Latest sync"
-          value={totals.latest ? formatTimestamp(totals.latest) : 'No data'}
-          hint="Most recent incoming payment."
+          label="Days in view"
+          value={dayGroups.length}
+          hint="Grouped by calendar day."
           tone="teal"
         />
       </section>
@@ -274,11 +333,14 @@ export default function App() {
           <div>
             <h2>Transactions</h2>
             <p>
-              Latest sync:{' '}
+              {dateFilter ? formatDayLabel(dateFilter) : 'All days'} · Latest sync:{' '}
               {totals.latest ? formatTimestamp(totals.latest) : 'No records yet'}
             </p>
           </div>
-          <div className="content__count">{filteredRows.length} rows</div>
+          <div className="content__count">
+            {filteredRows.length} rows across {dayGroups.length} day
+            {dayGroups.length === 1 ? '' : 's'}
+          </div>
         </div>
 
         {loading ? (
@@ -290,9 +352,22 @@ export default function App() {
             No payments match the current filters. Try a broader search or refresh the data.
           </div>
         ) : (
-          <div className="payments">
-            {filteredRows.map((payment) => (
-              <PaymentCard key={payment.id} payment={payment} />
+          <div className="day-groups">
+            {dayGroups.map((group) => (
+              <section key={group.dateKey} className="day-group">
+                <div className="day-group__header">
+                  <div>
+                    <h3>{group.label}</h3>
+                    <p>{group.rows.length} credited payment{group.rows.length === 1 ? '' : 's'}</p>
+                  </div>
+                  <strong>{formatMoney(group.total)}</strong>
+                </div>
+                <div className="payments">
+                  {group.rows.map((payment) => (
+                    <PaymentCard key={payment.id} payment={payment} />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         )}
