@@ -57,13 +57,11 @@ function StatCard({ label, value, hint, tone = 'default' }) {
 
 function PaymentCard({ payment }) {
   return (
-    <article className={`payment-card ${payment.received ? 'received' : 'sent'}`}>
+    <article className="payment-card received">
       <div className="payment-card__top">
         <div>
           <div className="payment-card__app">{payment.appName}</div>
-          <div className="payment-card__meta">
-            {payment.received ? 'Credited' : 'Debited'} · {payment.status}
-          </div>
+          <div className="payment-card__meta">Credited · {payment.status}</div>
         </div>
         <div className="payment-card__amount">
           {formatMoney(payment.amount, payment.currency)}
@@ -106,7 +104,6 @@ export default function App() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [appFilter, setAppFilter] = useState('all');
-  const [directionFilter, setDirectionFilter] = useState('all');
 
   const loadPayments = async () => {
     if (!isSupabaseConfigured) {
@@ -122,6 +119,7 @@ export default function App() {
     const { data, error: queryError } = await supabase
       .from('payment_events')
       .select('*')
+      .eq('received', true)
       .order('timestamp', { ascending: false })
       .limit(500);
 
@@ -152,14 +150,6 @@ export default function App() {
         return false;
       }
 
-      if (directionFilter === 'received' && !row.received) {
-        return false;
-      }
-
-      if (directionFilter === 'sent' && row.received) {
-        return false;
-      }
-
       if (!term) {
         return true;
       }
@@ -177,17 +167,13 @@ export default function App() {
         .filter(Boolean)
         .some((field) => String(field).toLowerCase().includes(term));
     });
-  }, [rows, search, appFilter, directionFilter]);
+  }, [rows, search, appFilter]);
 
   const totals = useMemo(() => {
     return filteredRows.reduce(
       (acc, row) => {
         acc.count += 1;
-        if (row.received) {
-          acc.credited += row.amount;
-        } else {
-          acc.debited += row.amount;
-        }
+        acc.credited += row.amount;
         acc.apps.add(row.appName);
         acc.latest = row.timestamp || acc.latest;
         return acc;
@@ -195,14 +181,11 @@ export default function App() {
       {
         count: 0,
         credited: 0,
-        debited: 0,
         apps: new Set(),
         latest: '',
       },
     );
   }, [filteredRows]);
-
-  const net = totals.credited - totals.debited;
 
   return (
     <main className="shell">
@@ -257,17 +240,6 @@ export default function App() {
           </select>
         </label>
 
-        <label>
-          <span>Direction</span>
-          <select
-            value={directionFilter}
-            onChange={(event) => setDirectionFilter(event.target.value)}
-          >
-            <option value="all">All</option>
-            <option value="received">Received</option>
-            <option value="sent">Sent</option>
-          </select>
-        </label>
       </section>
 
       <section className="stats">
@@ -284,16 +256,16 @@ export default function App() {
           tone="green"
         />
         <StatCard
-          label="Debited total"
-          value={formatMoney(totals.debited)}
-          hint="Outgoing payments and transfers."
-          tone="amber"
+          label="Apps in view"
+          value={totals.apps.size}
+          hint={`${totals.apps.size} payment app${totals.apps.size === 1 ? '' : 's'} shown.`}
+          tone="blue"
         />
         <StatCard
-          label="Net balance"
-          value={formatMoney(net)}
-          hint={`${totals.apps.size} app${totals.apps.size === 1 ? '' : 's'} in view.`}
-          tone={net >= 0 ? 'blue' : 'rose'}
+          label="Latest sync"
+          value={totals.latest ? formatTimestamp(totals.latest) : 'No data'}
+          hint="Most recent incoming payment."
+          tone="teal"
         />
       </section>
 

@@ -1,5 +1,7 @@
 import 'package:flutter_notification_listener/flutter_notification_listener.dart';
 
+typedef PaymentParseLogger = void Function(String message);
+
 enum PaymentDirection { incoming, outgoing, unknown }
 
 enum PaymentStatus { success, failed, pending, reversed, unknown }
@@ -230,24 +232,38 @@ class PaymentNotificationParser {
     'rtgs',
   ];
 
-  static PaymentNotification? tryParse(NotificationEvent event) {
+  static PaymentNotification? tryParse(
+    NotificationEvent event, {
+    PaymentParseLogger? logger,
+  }) {
     final packageName = event.packageName?.trim() ?? '';
     if (!_packageLabels.containsKey(packageName)) {
+      logger?.call('Rejected notification from unsupported package: $packageName');
       return null;
     }
 
     final candidate = _buildCandidateText(event);
     if (candidate.isEmpty) {
+      logger?.call('Rejected notification from $packageName because candidate text was empty');
       return null;
     }
 
     final hasPaymentSignal = _containsPaymentSignal(candidate);
     if (!hasPaymentSignal) {
+      logger?.call(
+        'Rejected notification from $packageName because no payment signal was found',
+      );
       return null;
     }
 
     final amount = _extractAmount(candidate);
     final direction = _extractDirection(candidate);
+    if (direction != PaymentDirection.incoming) {
+      logger?.call(
+        'Rejected notification from $packageName because it is not an incoming payment (direction=${direction.name})',
+      );
+      return null;
+    }
     final status = _extractStatus(candidate);
     final upiId = _firstMatch(candidate, [_upiId]);
     final transactionId = _firstGroup(candidate, [_transactionId]);
@@ -257,6 +273,12 @@ class PaymentNotificationParser {
 
     final rawTitle = event.title?.trim() ?? '';
     final rawBody = event.text?.trim() ?? '';
+
+    logger?.call(
+      'Parsed payment notification: package=$packageName amount=${amount?.toStringAsFixed(2) ?? 'null'} '
+      'direction=${direction.name} status=${status.name} counterparty=${counterparty ?? 'null'} '
+      'sourceId=${event.uniqueId?.trim() ?? 'generated'}',
+    );
 
     return PaymentNotification(
       sourceId:

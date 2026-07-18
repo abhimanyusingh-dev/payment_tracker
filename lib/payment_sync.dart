@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:isolate';
+import 'dart:developer' as developer;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_notification_listener/flutter_notification_listener.dart';
 
+import 'payment_backend.dart';
 import 'payment_notification.dart';
 
 enum ListenerState { unsupported, permissionRequired, listening, inactive }
@@ -87,6 +89,7 @@ class PaymentSync {
   static void _emit(PaymentNotification notification) {
     final signature = _signature(notification);
     if (signature.isEmpty) {
+      _log('Dropped notification because signature was empty');
       return;
     }
 
@@ -97,10 +100,18 @@ class PaymentSync {
 
     final lastSeen = _recentSignatures[signature];
     if (lastSeen != null && now.difference(lastSeen).abs() <= _dedupeWindow) {
+      _log(
+        'Deduped notification: sourceId=${notification.sourceId} app=${notification.appName} '
+        'amount=${notification.amount?.toStringAsFixed(2) ?? 'null'}',
+      );
       return;
     }
 
     _recentSignatures[signature] = now;
+    _log(
+      'Accepted notification for UI: sourceId=${notification.sourceId} '
+      'app=${notification.appName} amount=${notification.amount?.toStringAsFixed(2) ?? 'null'}',
+    );
     _controller.add(notification);
   }
 
@@ -130,16 +141,51 @@ class PaymentSync {
       normalizedMaskedAccount,
     ].join('|');
   }
+
+  static void _log(String message) {
+    developer.log(message, name: 'PaymentTracker');
+  }
 }
 
 @pragma('vm:entry-point')
 void paymentSyncBackgroundNotificationCallback(NotificationEvent event) {
-  final parsed = PaymentNotificationParser.tryParse(event);
+  developer.log(
+    'Raw notification: package=${event.packageName} title=${event.title} '
+    'text=${event.text} id=${event.id} uniqueId=${event.uniqueId} timestamp=${event.timestamp}',
+    name: 'PaymentTracker',
+  );
+
+  final parsed = PaymentNotificationParser.tryParse(
+    event,
+    logger: (message) => developer.log(message, name: 'PaymentTracker'),
+  );
   if (parsed == null) {
     return;
   }
 
+  developer.log(
+    'Saving payment: sourceId=${parsed.sourceId} app=${parsed.appName} '
+    'amount=${parsed.amount?.toStringAsFixed(2) ?? 'null'}',
+    name: 'PaymentTracker',
+  );
+
+  unawaited(
+    PaymentBackendClient.instance.savePayment(parsed, background: true),
+  );
+
   final sendPort =
       IsolateNameServer.lookupPortByName(PaymentSync._uiPortName);
-  sendPort?.send(parsed.toMap());
+  if (sendPort == null) {
+    developer.log(
+      'UI bridge not available for sourceId=${parsed.sourceId}',
+      name: 'PaymentTracker',
+    );
+    return;
+  }
+
+  sendPort.send(parsed.toMap());
+  developer.log(
+    'Forwarded payment to UI: sourceId=${parsed.sourceId}',
+    name: 'PaymentTracker',
+  );
 }

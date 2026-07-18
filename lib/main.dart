@@ -3,15 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'payment_backend.dart';
 import 'payment_notification.dart';
 import 'payment_sync.dart';
+import 'supabase_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
-    url: 'https://zkxjgyvaksguqidmrnyg.supabase.co',
-    publishableKey: 'sb_publishable_g30lVAF44gVjrlDiFjhNOA_rjA6X7VZ',
+    url: supabaseUrl,
+    publishableKey: supabaseAnonKey,
   );
   runApp(const PaymentTrackerApp());
 }
@@ -61,7 +61,6 @@ class _PaymentFeedScreenState extends State<PaymentFeedScreen> {
       setState(() {
         _payments.insert(0, payment);
       });
-      unawaited(PaymentBackendClient.instance.savePayment(payment));
     });
     _bootstrap();
   }

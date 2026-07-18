@@ -1,22 +1,36 @@
-import 'package:flutter/foundation.dart';
+import 'dart:developer' as developer;
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'payment_notification.dart';
+import 'supabase_config.dart';
 
 class PaymentBackendClient {
   PaymentBackendClient._();
 
   static final PaymentBackendClient instance = PaymentBackendClient._();
+  static final SupabaseClient _backgroundClient =
+      SupabaseClient(supabaseUrl, supabaseAnonKey);
 
-  Future<void> savePayment(PaymentNotification payment) async {
+  Future<void> savePayment(
+    PaymentNotification payment, {
+    bool background = false,
+  }) async {
     try {
-      await Supabase.instance.client
+      final client = background ? _backgroundClient : Supabase.instance.client;
+      await client
           .from('payment_events')
           .insert(payment.toBackendPayload());
-      debugPrint('Payment backend sync succeeded: ${payment.sourceId}');
+      developer.log(
+        'Payment backend sync succeeded: ${payment.sourceId}',
+        name: 'PaymentTracker',
+      );
     } catch (error) {
       // Keep notification capture resilient even if database writes fail.
-      debugPrint('Payment backend sync failed: $error');
+      developer.log(
+        'Payment backend sync failed: $error',
+        name: 'PaymentTracker',
+      );
     }
   }
 }
