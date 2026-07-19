@@ -64,6 +64,8 @@ const normalizePayment = (row) => ({
   referenceId: row.reference_id || '',
   upiId: row.upi_id || '',
   currency: row.currency || '₹',
+  title: row.raw_title || '',
+  description: row.raw_body || row.raw_text || '',
   rawTitle: row.raw_title || '',
   rawBody: row.raw_body || '',
   rawText: row.raw_text || '',
@@ -95,6 +97,14 @@ function PaymentCard({ payment }) {
       </div>
 
       <div className="payment-card__grid">
+        <div>
+          <span>Title</span>
+          <strong>{payment.title || 'Not captured'}</strong>
+        </div>
+        <div>
+          <span>Description</span>
+          <strong>{payment.description || 'Not captured'}</strong>
+        </div>
         <div>
           <span>Payee</span>
           <strong>{payment.payeeName || 'Not captured'}</strong>
@@ -185,13 +195,15 @@ export default function App() {
         return true;
       }
 
-      return [
-        row.appName,
-        row.packageName,
-        row.payeeName,
-        row.transactionId,
-        row.referenceId,
-        row.upiId,
+        return [
+          row.appName,
+          row.packageName,
+          row.title,
+          row.description,
+          row.payeeName,
+          row.transactionId,
+          row.referenceId,
+          row.upiId,
         row.note,
         row.rawBody,
       ]
@@ -245,7 +257,8 @@ export default function App() {
           <p className="eyebrow">SINGH CABLE NETWORK</p>
           <h1>Payment Tracker</h1>
           <p className="hero__copy">
-            A dashboard displaying payment information  from PhonePe, Google Pay,Google Pay Business and Paytm payments.
+            A dashboard displaying payment information from PhonePe, Google Pay, Google Pay
+            Business, and Paytm payments.
           </p>
           {!isSupabaseConfigured && (
             <p className="hero__copy hero__copy--alert">

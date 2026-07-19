@@ -37,19 +37,36 @@ void main() {
     expect(parsed.transactionId, '12345');
   });
 
-  test('parses Paytm Business payment notification', () {
+  test('parses PhonePe sent to you notification as incoming', () {
+    final parsed = PaymentNotificationParser.tryParse(
+      _event(
+        packageName: 'com.phonepe.app',
+        title: '******1986: ******1986',
+        text: 'sent ₹472 to you.',
+      ),
+    );
+
+    expect(parsed, isNotNull);
+    expect(parsed!.appName, 'PhonePe');
+    expect(parsed.amount, 472);
+    expect(parsed.direction, PaymentDirection.incoming);
+    expect(parsed.status, PaymentStatus.success);
+  });
+
+  test('parses Paytm Business incoming payment notification', () {
     final parsed = PaymentNotificationParser.tryParse(
       _event(
         packageName: 'com.paytm.business',
         title: 'Payment successful',
-        text: '₹1,200 paid to ABC Stores\nTxn ID: TXN12345\nNote: Tea order',
+        text:
+            '₹1,200 received from ABC Stores\nTxn ID: TXN12345\nNote: Tea order',
       ),
     );
 
     expect(parsed, isNotNull);
     expect(parsed!.appName, 'Paytm Business');
     expect(parsed.amount, 1200);
-    expect(parsed.direction, PaymentDirection.outgoing);
+    expect(parsed.direction, PaymentDirection.incoming);
     expect(parsed.status, PaymentStatus.success);
     expect(parsed.counterparty, contains('ABC Stores'));
     expect(parsed.transactionId, 'TXN12345');

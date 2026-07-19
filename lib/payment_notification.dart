@@ -257,14 +257,17 @@ class PaymentNotificationParser {
     }
 
     final amount = _extractAmount(candidate);
-    final direction = _extractDirection(candidate);
+    final direction = _extractDirection(candidate, packageName: packageName);
     if (direction != PaymentDirection.incoming) {
       logger?.call(
         'Rejected notification from $packageName because it is not an incoming payment (direction=${direction.name})',
       );
       return null;
     }
-    final status = _extractStatus(candidate);
+    var status = _extractStatus(candidate);
+    if (status == PaymentStatus.unknown) {
+      status = PaymentStatus.success;
+    }
     final upiId = _firstMatch(candidate, [_upiId]);
     final transactionId = _firstGroup(candidate, [_transactionId]);
     final maskedAccount = _firstGroup(candidate, [_maskedAccount]);
@@ -363,8 +366,29 @@ class PaymentNotificationParser {
     return null;
   }
 
-  static PaymentDirection _extractDirection(String text) {
+  static PaymentDirection _extractDirection(
+    String text, {
+    required String packageName,
+  }) {
     final lower = text.toLowerCase();
+    if (packageName == 'com.phonepe.app') {
+      final incomingPhonePe = _containsAny(lower, [
+        'sent ₹',
+        'sent rs',
+        'sent inr',
+      ]) &&
+          _containsAny(lower, [
+            'to you',
+            'to your bank account',
+            'money received',
+            'received',
+            'credited',
+          ]);
+      if (incomingPhonePe) {
+        return PaymentDirection.incoming;
+      }
+    }
+
     if (_containsAny(lower, ['received', 'credited', 'refund', 'added'])) {
       return PaymentDirection.incoming;
     }
