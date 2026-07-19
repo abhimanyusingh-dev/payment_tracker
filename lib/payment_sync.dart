@@ -53,19 +53,36 @@ class PaymentSync {
       callbackHandle: paymentSyncBackgroundNotificationCallback,
     );
 
-    final isRunning = await NotificationsListener.isRunning ?? false;
-    if (!isRunning) {
-      final started = await NotificationsListener.startService(
-        foreground: true,
-        title: 'Payment tracker',
-        description: 'Listening for payment notifications',
-      );
-      if (started != true) {
-        return ListenerState.inactive;
-      }
+    final started = await _ensureRunning();
+    if (!started) {
+      return ListenerState.inactive;
     }
 
     return ListenerState.listening;
+  }
+
+  static Future<bool> ensureRunning() async {
+    if (!_isAndroid) {
+      return false;
+    }
+
+    final hasPermission = await NotificationsListener.hasPermission ?? false;
+    if (!hasPermission) {
+      return false;
+    }
+
+    await NotificationsListener.initialize(
+      callbackHandle: paymentSyncBackgroundNotificationCallback,
+    );
+
+    return _ensureRunning();
+  }
+
+  static Future<bool> isRunning() async {
+    if (!_isAndroid) {
+      return false;
+    }
+    return await NotificationsListener.isRunning ?? false;
   }
 
   static Future<void> openPermissionSettings() async {
@@ -73,6 +90,23 @@ class PaymentSync {
       return;
     }
     await NotificationsListener.openPermissionSettings();
+  }
+
+  static Future<bool> _ensureRunning() async {
+    final isRunning = await NotificationsListener.isRunning ?? false;
+    if (isRunning) {
+      _log('Notification listener service already running');
+      return true;
+    }
+
+    _log('Notification listener service is not running, starting it now');
+    final started = await NotificationsListener.startService(
+      foreground: true,
+      title: 'Payment tracker',
+      description: 'Listening for payment notifications',
+    );
+    _log('Notification listener service start result: $started');
+    return started == true;
   }
 
   static void _onMessage(dynamic message) {
@@ -103,6 +137,15 @@ class PaymentSync {
       _log(
         'Deduped notification: sourceId=${notification.sourceId} app=${notification.appName} '
         'amount=${notification.amount?.toStringAsFixed(2) ?? 'null'}',
+      );
+      unawaited(
+        PaymentBackendClient.instance.logDiagnostic(
+          stage: 'dedupe',
+          outcome: 'dropped',
+          reason: 'Duplicate signature within $_dedupeWindow',
+          payment: notification,
+          background: true,
+        ),
       );
       return;
     }
@@ -155,11 +198,27 @@ void paymentSyncBackgroundNotificationCallback(NotificationEvent event) {
     name: 'PaymentTracker',
   );
 
+  String? parseReason;
   final parsed = PaymentNotificationParser.tryParse(
     event,
-    logger: (message) => developer.log(message, name: 'PaymentTracker'),
+    logger: (message) {
+      parseReason = message;
+      developer.log(message, name: 'PaymentTracker');
+    },
   );
   if (parsed == null) {
+    unawaited(
+      PaymentBackendClient.instance.logDiagnostic(
+        stage: 'parse',
+        outcome: 'rejected',
+        reason: parseReason ?? 'parser returned null',
+        packageName: event.packageName?.toString(),
+        rawTitle: event.title?.toString(),
+        rawBody: event.text?.toString(),
+        rawText: event.raw?.toString(),
+        background: true,
+      ),
+    );
     return;
   }
 
@@ -179,6 +238,15 @@ void paymentSyncBackgroundNotificationCallback(NotificationEvent event) {
     developer.log(
       'UI bridge not available for sourceId=${parsed.sourceId}',
       name: 'PaymentTracker',
+    );
+    unawaited(
+      PaymentBackendClient.instance.logDiagnostic(
+        stage: 'forward',
+        outcome: 'ui_bridge_missing',
+        payment: parsed,
+        reason: 'No UI isolate port was registered',
+        background: true,
+      ),
     );
     return;
   }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'payment_backend.dart';
 import 'payment_notification.dart';
 import 'payment_sync.dart';
 import 'supabase_config.dart';
@@ -45,10 +46,16 @@ class PaymentFeedScreen extends StatefulWidget {
 }
 
 class _PaymentFeedScreenState extends State<PaymentFeedScreen> {
+  static const Duration _watchdogInterval = Duration(seconds: 30);
+  static const Duration _healthHeartbeatInterval = Duration(minutes: 15);
   final List<PaymentNotification> _payments = <PaymentNotification>[];
   StreamSubscription<PaymentNotification>? _subscription;
+  Timer? _watchdogTimer;
   ListenerState _listenerState = ListenerState.inactive;
   bool _booting = true;
+  bool _watchdogRunning = false;
+  bool? _lastRunningState;
+  DateTime? _lastHealthLogAt;
 
   @override
   void initState() {
@@ -63,10 +70,12 @@ class _PaymentFeedScreenState extends State<PaymentFeedScreen> {
       });
     });
     _bootstrap();
+    _startWatchdog();
   }
 
   @override
   void dispose() {
+    _watchdogTimer?.cancel();
     _subscription?.cancel();
     super.dispose();
   }
@@ -80,6 +89,79 @@ class _PaymentFeedScreenState extends State<PaymentFeedScreen> {
       _listenerState = state;
       _booting = false;
     });
+    await _recordServiceHealth(state == ListenerState.listening ? 'running' : 'inactive');
+  }
+
+  void _startWatchdog() {
+    if (_watchdogRunning) {
+      return;
+    }
+
+    _watchdogRunning = true;
+    _watchdogTimer = Timer.periodic(_watchdogInterval, (_) {
+      unawaited(_checkListenerHealth());
+    });
+    unawaited(_checkListenerHealth());
+  }
+
+  Future<void> _checkListenerHealth() async {
+    final running = await PaymentSync.isRunning();
+    if (!mounted) {
+      return;
+    }
+
+    if (!running) {
+      if (_lastRunningState != false) {
+        await _recordServiceHealth(
+          'stopped',
+          reason: 'Watchdog observed the listener service was not running',
+        );
+      }
+      final restored = await PaymentSync.ensureRunning();
+      if (!mounted) {
+        return;
+      }
+      if (restored) {
+        await _recordServiceHealth(
+          'restarted',
+          reason: 'Watchdog restarted the listener service',
+        );
+      }
+      setState(() {
+        _listenerState = restored ? ListenerState.listening : ListenerState.inactive;
+      });
+      _lastRunningState = restored;
+      return;
+    }
+
+    if (_listenerState != ListenerState.listening) {
+      setState(() {
+        _listenerState = ListenerState.listening;
+      });
+    }
+
+    _lastRunningState = true;
+    final now = DateTime.now();
+    final shouldHeartbeat = _lastHealthLogAt == null ||
+        now.difference(_lastHealthLogAt!) >= _healthHeartbeatInterval ||
+        _listenerState != ListenerState.listening;
+    if (shouldHeartbeat) {
+      await _recordServiceHealth(
+        'running',
+        reason: 'Watchdog confirmed the listener service is healthy',
+      );
+    }
+  }
+
+  Future<void> _recordServiceHealth(
+    String outcome, {
+    String? reason,
+  }) async {
+    _lastHealthLogAt = DateTime.now();
+    await PaymentBackendClient.instance.logServiceHealth(
+      outcome: outcome,
+      reason: reason,
+    );
   }
 
   Future<void> _openPermissionSettings() async {
