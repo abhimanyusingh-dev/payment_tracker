@@ -159,7 +159,8 @@ class PaymentSync {
   }
 
   static String _signature(PaymentNotification notification) {
-    final normalizedCounterparty = notification.counterparty?.trim().toLowerCase() ?? '';
+    final normalizedCounterparty =
+        notification.counterparty?.trim().toLowerCase() ?? '';
     final normalizedUpiId = notification.upiId?.trim().toLowerCase() ?? '';
     final normalizedTransactionId =
         notification.transactionId?.trim().toLowerCase() ?? '';
@@ -198,6 +199,22 @@ void paymentSyncBackgroundNotificationCallback(NotificationEvent event) {
     name: 'PaymentTracker',
   );
 
+  final packageName = event.packageName?.toString() ?? '';
+  if (packageName.isNotEmpty) {
+    unawaited(
+      PaymentBackendClient.instance.logDiagnostic(
+        stage: 'receive',
+        outcome: 'observed',
+        packageName: packageName,
+        rawTitle: event.title?.toString(),
+        rawBody: event.text?.toString(),
+        rawText: event.raw?.toString(),
+        reason: 'Raw notification observed by the listener service',
+        background: true,
+      ),
+    );
+  }
+
   String? parseReason;
   final parsed = PaymentNotificationParser.tryParse(
     event,
@@ -232,8 +249,7 @@ void paymentSyncBackgroundNotificationCallback(NotificationEvent event) {
     PaymentBackendClient.instance.savePayment(parsed, background: true),
   );
 
-  final sendPort =
-      IsolateNameServer.lookupPortByName(PaymentSync._uiPortName);
+  final sendPort = IsolateNameServer.lookupPortByName(PaymentSync._uiPortName);
   if (sendPort == null) {
     developer.log(
       'UI bridge not available for sourceId=${parsed.sourceId}',
