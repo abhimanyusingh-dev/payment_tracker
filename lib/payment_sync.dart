@@ -17,7 +17,6 @@ class PaymentSync {
   static final StreamController<PaymentNotification> _controller =
       StreamController<PaymentNotification>.broadcast();
   static final Map<String, DateTime> _recentSignatures = <String, DateTime>{};
-  static final Map<String, DateTime> _recentSourceIds = <String, DateTime>{};
   static ReceivePort? _uiPort;
   static bool _uiBridgeReady = false;
 
@@ -129,32 +128,9 @@ class PaymentSync {
     }
 
     final now = notification.receivedAt;
-    _recentSourceIds.removeWhere(
-      (key, seenAt) => now.difference(seenAt).abs() > _dedupeWindow,
-    );
     _recentSignatures.removeWhere(
       (key, seenAt) => now.difference(seenAt).abs() > _dedupeWindow,
     );
-
-    final sourceId = notification.sourceId.trim();
-    final lastSourceSeen = sourceId.isEmpty ? null : _recentSourceIds[sourceId];
-    if (lastSourceSeen != null &&
-        now.difference(lastSourceSeen).abs() <= _dedupeWindow) {
-      _log(
-        'Deduped notification by sourceId: sourceId=${notification.sourceId} '
-        'app=${notification.appName} amount=${notification.amount?.toStringAsFixed(2) ?? 'null'}',
-      );
-      unawaited(
-        PaymentBackendClient.instance.logDiagnostic(
-          stage: 'dedupe',
-          outcome: 'dropped',
-          reason: 'Duplicate source_id within $_dedupeWindow',
-          payment: notification,
-          background: true,
-        ),
-      );
-      return;
-    }
 
     final lastSeen = _recentSignatures[signature];
     if (lastSeen != null && now.difference(lastSeen).abs() <= _dedupeWindow) {
@@ -174,9 +150,6 @@ class PaymentSync {
       return;
     }
 
-    if (sourceId.isNotEmpty) {
-      _recentSourceIds[sourceId] = now;
-    }
     _recentSignatures[signature] = now;
     _log(
       'Accepted notification for UI: sourceId=${notification.sourceId} '

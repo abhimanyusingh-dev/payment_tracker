@@ -19,11 +19,31 @@ class PaymentBackendClient {
   }) async {
     try {
       final client = background ? _backgroundClient : Supabase.instance.client;
-      await client
+      final existing = await client
           .from('payment_events')
-          .insert(payment.toBackendPayload());
+          .select('id')
+          .eq('transaction_key', payment.transactionKey)
+          .limit(1);
+      if (existing.isNotEmpty) {
+        developer.log(
+          'Payment backend sync skipped duplicate transaction: ${payment.transactionKey}',
+          name: 'PaymentTracker',
+        );
+        unawaited(
+          logDiagnostic(
+            stage: 'dedupe',
+            outcome: 'existing_transaction',
+            reason: 'Transaction key already exists in payment_events',
+            payment: payment,
+            background: background,
+          ),
+        );
+        return;
+      }
+
+      await client.from('payment_events').insert(payment.toBackendPayload());
       developer.log(
-        'Payment backend sync succeeded: ${payment.sourceId}',
+        'Payment backend sync succeeded: ${payment.transactionKey}',
         name: 'PaymentTracker',
       );
       unawaited(
@@ -68,6 +88,7 @@ class PaymentBackendClient {
       final client = background ? _backgroundClient : Supabase.instance.client;
       await client.from('notification_diagnostics').insert(<String, dynamic>{
         'source_id': payment?.sourceId,
+        'transaction_key': payment?.transactionKey,
         'package_name': payment?.packageName ?? packageName,
         'app_name': payment?.appName ?? appName,
         'stage': stage,

@@ -52,6 +52,7 @@ const toLocalDateKey = (value) => {
 
 const normalizePayment = (row) => ({
   id: row.id,
+  transactionKey: row.transaction_key || '',
   sourceId: row.source_id,
   packageName: row.package_name,
   appName: row.app_name,
@@ -116,6 +117,10 @@ function PaymentCard({ payment }) {
         <div>
           <span>Transaction</span>
           <strong>{payment.transactionId || payment.referenceId || 'Not captured'}</strong>
+        </div>
+        <div>
+          <span>Transaction key</span>
+          <strong>{payment.transactionKey || 'Not captured'}</strong>
         </div>
         <div>
           <span>Source</span>
@@ -198,6 +203,7 @@ export default function App() {
         return [
           row.appName,
           row.packageName,
+          row.transactionKey,
           row.title,
           row.description,
           row.payeeName,

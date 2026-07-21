@@ -7,6 +7,7 @@ enum PaymentDirection { incoming, outgoing, unknown }
 enum PaymentStatus { success, failed, pending, reversed, unknown }
 
 class PaymentNotification {
+  final String transactionKey;
   final String sourceId;
   final String packageName;
   final String appName;
@@ -26,6 +27,7 @@ class PaymentNotification {
   final String? maskedAccount;
 
   const PaymentNotification({
+    required this.transactionKey,
     required this.sourceId,
     required this.packageName,
     required this.appName,
@@ -47,6 +49,7 @@ class PaymentNotification {
 
   factory PaymentNotification.fromMap(Map<dynamic, dynamic> map) {
     return PaymentNotification(
+      transactionKey: map['transactionKey']?.toString() ?? '',
       sourceId: map['sourceId']?.toString() ?? '',
       packageName: map['packageName']?.toString() ?? '',
       appName: map['appName']?.toString() ?? '',
@@ -77,6 +80,7 @@ class PaymentNotification {
 
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
+      'transactionKey': transactionKey,
       'sourceId': sourceId,
       'packageName': packageName,
       'appName': appName,
@@ -99,6 +103,7 @@ class PaymentNotification {
 
   Map<String, dynamic> toBackendPayload() {
     return <String, dynamic>{
+      'transaction_key': transactionKey,
       'source_id': sourceId,
       'package_name': packageName,
       'app_name': appName,
@@ -273,17 +278,34 @@ class PaymentNotificationParser {
     final maskedAccount = _firstGroup(candidate, [_maskedAccount]);
     final note = _firstGroup(candidate, [_note]);
     final counterparty = _extractCounterparty(candidate, direction);
-
     final rawTitle = event.title?.trim() ?? '';
     final rawBody = event.text?.trim() ?? '';
+    final transactionKey = _buildTransactionKey(
+      packageName: packageName,
+      appName: _packageLabels[packageName] ?? packageName,
+      direction: direction,
+      status: status,
+      amount: amount,
+      counterparty: counterparty,
+      upiId: upiId,
+      transactionId: transactionId,
+      referenceId: transactionId,
+      note: note,
+      maskedAccount: maskedAccount,
+      rawTitle: rawTitle,
+      rawBody: rawBody,
+      rawText: candidate,
+    );
 
     logger?.call(
       'Parsed payment notification: package=$packageName amount=${amount?.toStringAsFixed(2) ?? 'null'} '
       'direction=${direction.name} status=${status.name} counterparty=${counterparty ?? 'null'} '
+      'transactionKey=$transactionKey '
       'sourceId=${event.uniqueId?.trim() ?? 'generated'}',
     );
 
     return PaymentNotification(
+      transactionKey: transactionKey,
       sourceId:
           event.uniqueId?.trim() ??
           '${packageName}_${event.timestamp ?? event.createAt?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch}',
@@ -304,6 +326,46 @@ class PaymentNotificationParser {
       note: note,
       maskedAccount: maskedAccount,
     );
+  }
+
+  static String _buildTransactionKey({
+    required String packageName,
+    required String appName,
+    required PaymentDirection direction,
+    required PaymentStatus status,
+    required double? amount,
+    required String? counterparty,
+    required String? upiId,
+    required String? transactionId,
+    required String? referenceId,
+    required String? note,
+    required String? maskedAccount,
+    required String rawTitle,
+    required String rawBody,
+    required String rawText,
+  }) {
+    final parts = <String>[
+      'package=${_normalizeKeyPart(packageName)}',
+      'app=${_normalizeKeyPart(appName)}',
+      'direction=${direction.name}',
+      'status=${status.name}',
+      'amount=${amount == null ? 'na' : amount.toStringAsFixed(2)}',
+      'counterparty=${_normalizeKeyPart(counterparty)}',
+      'upi=${_normalizeKeyPart(upiId)}',
+      'transactionId=${_normalizeKeyPart(transactionId)}',
+      'referenceId=${_normalizeKeyPart(referenceId)}',
+      'note=${_normalizeKeyPart(note)}',
+      'maskedAccount=${_normalizeKeyPart(maskedAccount)}',
+      'title=${_normalizeKeyPart(rawTitle)}',
+      'body=${_normalizeKeyPart(rawBody)}',
+      'text=${_normalizeKeyPart(rawText)}',
+    ];
+    return parts.join('|');
+  }
+
+  static String _normalizeKeyPart(String? value) {
+    final normalized = _normalize(value);
+    return normalized.isEmpty ? 'na' : normalized;
   }
 
   static String _buildCandidateText(NotificationEvent event) {
