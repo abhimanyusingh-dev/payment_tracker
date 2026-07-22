@@ -114,18 +114,18 @@ function PaymentCard({ payment }) {
           <span>Timestamp</span>
           <strong>{formatTimestamp(payment.timestamp)}</strong>
         </div>
-        <div>
-          <span>Transaction</span>
-          <strong>{payment.transactionId || payment.referenceId || 'Not captured'}</strong>
-        </div>
-        <div>
-          <span>Transaction key</span>
-          <strong>{payment.transactionKey || 'Not captured'}</strong>
-        </div>
-        <div>
-          <span>Source</span>
-          <strong>{payment.packageName}</strong>
-        </div>
+{/*         <div> */}
+{/*           <span>Transaction</span> */}
+{/*           <strong>{payment.transactionId || payment.referenceId || 'Not captured'}</strong> */}
+{/*         </div> */}
+{/*         <div> */}
+{/*           <span>Transaction key</span> */}
+{/*           <strong>{payment.transactionKey || 'Not captured'}</strong> */}
+{/*         </div> */}
+{/*         <div> */}
+{/*           <span>Source</span> */}
+{/*           <strong>{payment.packageName}</strong> */}
+{/*         </div> */}
       </div>
 
       {(payment.note || payment.maskedAccount) && (
