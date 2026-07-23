@@ -19,12 +19,15 @@ class PaymentBackendClient {
   }) async {
     try {
       final client = background ? _backgroundClient : Supabase.instance.client;
-      final existing = await client
+      final upsertedRows = await client
           .from('payment_events')
-          .select('id')
-          .eq('transaction_key', payment.transactionKey)
-          .limit(1);
-      if (existing.isNotEmpty) {
+          .upsert(
+            payment.toBackendPayload(),
+            onConflict: 'transaction_key',
+            ignoreDuplicates: true,
+          )
+          .select('id');
+      if (upsertedRows.isEmpty) {
         developer.log(
           'Payment backend sync skipped duplicate transaction: ${payment.transactionKey}',
           name: 'PaymentTracker',
@@ -37,11 +40,10 @@ class PaymentBackendClient {
             payment: payment,
             background: background,
           ),
-        );
+          );
         return;
       }
 
-      await client.from('payment_events').insert(payment.toBackendPayload());
       developer.log(
         'Payment backend sync succeeded: ${payment.transactionKey}',
         name: 'PaymentTracker',

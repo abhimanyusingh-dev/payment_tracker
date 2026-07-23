@@ -35,6 +35,7 @@ void main() {
     expect(parsed.counterparty, contains('Raju'));
     expect(parsed.upiId, 'raju@upi');
     expect(parsed.transactionId, '12345');
+    expect(parsed.transactionKey, isNotEmpty);
   });
 
   test('parses PhonePe sent to you notification as incoming', () {
@@ -51,6 +52,7 @@ void main() {
     expect(parsed.amount, 472);
     expect(parsed.direction, PaymentDirection.incoming);
     expect(parsed.status, PaymentStatus.success);
+    expect(parsed.transactionKey, isNotEmpty);
   });
 
   test('parses Paytm Business incoming payment notification', () {
@@ -71,6 +73,7 @@ void main() {
     expect(parsed.counterparty, contains('ABC Stores'));
     expect(parsed.transactionId, 'TXN12345');
     expect(parsed.note, contains('Tea order'));
+    expect(parsed.transactionKey, isNotEmpty);
   });
 
   test('parses Google Pay notification', () {
@@ -89,6 +92,7 @@ void main() {
     expect(parsed.status, PaymentStatus.success);
     expect(parsed.counterparty, contains('Aman'));
     expect(parsed.transactionId, '998877');
+    expect(parsed.transactionKey, isNotEmpty);
   });
 
   test('ignores non-payment notifications from supported apps', () {
