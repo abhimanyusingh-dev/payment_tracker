@@ -433,6 +433,35 @@ class PaymentNotificationParser {
     required String packageName,
   }) {
     final lower = text.toLowerCase();
+    if (packageName == 'com.google.android.apps.nbu.paisa.user' ||
+        packageName == 'com.google.android.apps.nbu.paisa.merchant') {
+      if (_containsAny(lower, [
+        'paid you',
+        'received',
+        'credited',
+        'money received',
+        'payment received',
+        'received from',
+        'sent ₹',
+        'sent rs',
+        'sent inr',
+      ])) {
+        return PaymentDirection.incoming;
+      }
+      if (_containsAny(lower, [
+        'you paid',
+        'paid to',
+        'sent to',
+        'debited',
+        'deducted',
+        'spent',
+        'withdrawn',
+        'transferred',
+      ])) {
+        return PaymentDirection.outgoing;
+      }
+    }
+
     if (packageName == 'com.phonepe.app') {
       final incomingPhonePe = _containsAny(lower, [
         'sent ₹',
@@ -523,6 +552,11 @@ class PaymentNotificationParser {
         r'\b(?:payment from|money received from)\s+([a-z0-9@._&\-\s]{2,80}?)(?=(?:\s+(?:via|using|on|at|for|to|in|upi|imps|neft|rtgs)\b)|[,.|;:]|$)',
         caseSensitive: false,
       ),
+      if (direction == PaymentDirection.incoming)
+        RegExp(
+          r'\b([a-z0-9@._&\-\s]{2,80}?)\s+(?:paid you|paid|sent you|sent)\s+(?:₹|rs\.?|inr)?\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?',
+          caseSensitive: false,
+        ),
     ];
 
     final candidate = _firstGroup(text, patterns);

@@ -95,6 +95,24 @@ void main() {
     expect(parsed.transactionKey, isNotEmpty);
   });
 
+  test('parses Google Pay Business paid you notification', () {
+    final parsed = PaymentNotificationParser.tryParse(
+      _event(
+        packageName: 'com.google.android.apps.nbu.paisa.merchant',
+        title: 'ARUNKUMARRAI paid you ₹472.00',
+        text: 'NO REMARKS',
+      ),
+    );
+
+    expect(parsed, isNotNull);
+    expect(parsed!.appName, 'Google Pay Business');
+    expect(parsed.amount, 472);
+    expect(parsed.direction, PaymentDirection.incoming);
+    expect(parsed.status, PaymentStatus.success);
+    expect(parsed.counterparty, contains('ARUNKUMARRAI'));
+    expect(parsed.transactionKey, isNotEmpty);
+  });
+
   test('ignores non-payment notifications from supported apps', () {
     final parsed = PaymentNotificationParser.tryParse(
       _event(
