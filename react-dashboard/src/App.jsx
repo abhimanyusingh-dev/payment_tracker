@@ -327,12 +327,12 @@ export default function App() {
           hint="Rows matching the current filters."
           tone="teal"
         />
-        <StatCard
-          label="Credited total"
-          value={formatMoney(totals.credited)}
-          hint="Incoming money from payment apps."
-          tone="green"
-        />
+{/*         <StatCard */}
+{/*           label="Credited total" */}
+{/*           value={formatMoney(totals.credited)} */}
+{/*           hint="Incoming money from payment apps." */}
+{/*           tone="green" */}
+{/*         /> */}
         <StatCard
           label="Apps in view"
           value={totals.apps.size}
